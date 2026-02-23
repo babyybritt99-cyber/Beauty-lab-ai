@@ -1,27 +1,139 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
 <head>
+
 <title>Beauty Lab AI</title>
+
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+body{
+font-family:Arial;
+background:#111;
+color:white;
+text-align:center;
+padding:20px;
+}
+
+button{
+padding:12px;
+font-size:16px;
+margin:10px;
+background:#2b5cff;
+color:white;
+border:none;
+border-radius:8px;
+}
+
+canvas{
+width:100%;
+max-width:400px;
+border-radius:10px;
+margin-top:10px;
+}
+
+</style>
+
 </head>
 
-<body style="font-family:Arial;background:#111;color:white;text-align:center;padding:20px;">
+<body>
 
 <h1>Beauty Lab AI</h1>
 
-<p>Private Personal Beauty Lab</p>
+<p>Private AI Beauty System</p>
 
-<p>No uploads. No accounts. Private.</p>
+<input id="photo" type="file" accept="image/*">
 
-<input type="file" accept="image/*">
+<br>
 
-<br><br>
+<button id="analyze">Analyze Photo</button>
 
-<button>Analyze Photo</button>
+<br>
 
-<br><br>
+<canvas id="canvas"></canvas>
 
-<p>This is your private Beauty Lab AI system.</p>
+<h3>Results</h3>
+
+<pre id="results"></pre>
+
+<script>
+
+const photo=document.getElementById("photo")
+const analyze=document.getElementById("analyze")
+const canvas=document.getElementById("canvas")
+const results=document.getElementById("results")
+
+let imageBitmap
+
+photo.onchange=async()=>{
+
+const file=photo.files[0]
+
+imageBitmap=await createImageBitmap(file)
+
+const ctx=canvas.getContext("2d")
+
+canvas.width=imageBitmap.width
+
+canvas.height=imageBitmap.height
+
+ctx.drawImage(imageBitmap,0,0)
+
+}
+
+analyze.onclick=()=>{
+
+const ctx=canvas.getContext("2d")
+
+const img=ctx.getImageData(0,0,canvas.width,canvas.height)
+
+let brightness=0
+let redness=0
+
+for(let i=0;i<img.data.length;i+=4){
+
+const r=img.data[i]
+const g=img.data[i+1]
+const b=img.data[i+2]
+
+brightness+=(r+g+b)/3
+
+redness+=r-(g+b)/2
+
+}
+
+brightness/=img.data.length/4
+
+redness/=img.data.length/4
+
+const skinScore=Math.round(
+100-(redness/2)+(brightness/4)
+)
+
+results.innerText=`
+
+Skin Score: ${skinScore}
+
+Brightness: ${Math.round(brightness)}
+
+Redness Index: ${Math.round(redness)}
+
+Estimated Skin Condition:
+
+${skinScore>80?"Healthy looking skin":
+skinScore>60?"Moderate skin condition":
+"Skin needs improvement"}
+
+All analysis runs locally.
+Photos are never uploaded.
+
+`
+
+}
+
+</script>
 
 </body>
+
 </html>
