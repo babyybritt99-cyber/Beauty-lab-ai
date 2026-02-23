@@ -109,6 +109,8 @@ Upload a photo first.
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh"></script>
+
 <script>
 
 // DATABASE
@@ -182,6 +184,7 @@ const clearBtn=document.getElementById("clear")
 const exportBtn=document.getElementById("export")
 
 let imageReady=false
+let currentImage
 
 photo.onchange=async()=>{
 
@@ -200,6 +203,8 @@ canvas.height=img.height
 
 ctx.drawImage(img,0,0)
 
+currentImage=img
+
 imageReady=true
 
 analyze.disabled=false
@@ -211,6 +216,25 @@ results.innerText="Photo ready. Tap Analyze."
 img.src=URL.createObjectURL(file)
 
 }
+
+// FACE AI
+
+const faceMesh = new FaceMesh({
+
+locateFile: (file) => {
+return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+}
+
+});
+
+faceMesh.setOptions({
+
+maxNumFaces:1,
+refineLandmarks:true,
+minDetectionConfidence:0.5,
+minTrackingConfidence:0.5
+
+});
 
 // ANALYSIS
 
@@ -255,8 +279,6 @@ redness/=px
 
 const oiliness=shine/px
 
-// FIXED SCORE
-
 const skinScore=Math.max(
 0,
 Math.min(
@@ -273,6 +295,47 @@ const glowScore=Math.round(
 (skinScore+80)/2
 )
 
+// FACE ANALYSIS
+
+let faceResults="Face not detected."
+
+await faceMesh.send({image:currentImage})
+
+faceMesh.onResults(res=>{
+
+if(res.multiFaceLandmarks){
+
+const lm=res.multiFaceLandmarks[0]
+
+const left=lm[234]
+const right=lm[454]
+const chin=lm[152]
+const top=lm[10]
+
+const width=Math.abs(right.x-left.x)
+const height=Math.abs(chin.y-top.y)
+
+const ratio=(height/width).toFixed(2)
+
+let shape="Oval"
+
+if(ratio<1.1)shape="Round"
+if(ratio>1.4)shape="Long"
+
+faceResults=`
+
+Face Ratio: ${ratio}
+
+Estimated Face Shape:
+
+${shape}
+
+`
+
+}
+
+})
+
 results.innerText=`
 
 Skin Score: ${skinScore}
@@ -287,6 +350,8 @@ Oiliness Index:
 
 ${oiliness.toFixed(4)}
 
+${faceResults}
+
 All analysis runs locally.
 Photos never uploaded.
 
@@ -300,13 +365,7 @@ date:new Date().toLocaleString(),
 
 skinScore,
 
-glowScore,
-
-brightness,
-
-redness,
-
-oiliness
+glowScore
 
 })
 
