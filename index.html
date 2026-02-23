@@ -1,5 +1,6 @@
 <!doctype html>
 <html>
+
 <head>
 
 <meta charset="utf-8">
@@ -55,13 +56,11 @@ border:1px solid #222;
 }
 
 .historyItem{
-
 background:#0c0c0c;
 margin-top:10px;
 padding:10px;
 border-radius:10px;
 border:1px solid #222;
-
 }
 
 </style>
@@ -82,7 +81,7 @@ border:1px solid #222;
 
 <br>
 
-<button id="analyze">Analyze Photo</button>
+<button id="analyze" disabled>Analyze Photo</button>
 
 <button id="export">Export History</button>
 
@@ -92,7 +91,7 @@ border:1px solid #222;
 
 <pre id="results">
 
-Upload a photo to begin.
+Upload a photo first.
 
 </pre>
 
@@ -115,7 +114,6 @@ Upload a photo to begin.
 // DATABASE
 
 const DB="beautylab"
-
 const STORE="results"
 
 function openDB(){
@@ -172,48 +170,59 @@ tx.objectStore(STORE).clear()
 
 }
 
-
 // UI
 
 const photo=document.getElementById("photo")
-
 const analyze=document.getElementById("analyze")
-
 const canvas=document.getElementById("canvas")
-
 const results=document.getElementById("results")
-
 const historyDiv=document.getElementById("history")
-
 const refresh=document.getElementById("refresh")
-
 const clearBtn=document.getElementById("clear")
-
 const exportBtn=document.getElementById("export")
 
-let imageBitmap
-
+let imageReady=false
 
 photo.onchange=async()=>{
 
 const file=photo.files[0]
 
-imageBitmap=await createImageBitmap(file)
+if(!file)return
+
+const img=new Image()
+
+img.onload=()=>{
 
 const ctx=canvas.getContext("2d")
 
-canvas.width=imageBitmap.width
+canvas.width=img.width
+canvas.height=img.height
 
-canvas.height=imageBitmap.height
+ctx.drawImage(img,0,0)
 
-ctx.drawImage(imageBitmap,0,0)
+imageReady=true
+
+analyze.disabled=false
+
+results.innerText="Photo ready. Tap Analyze."
 
 }
 
+img.src=URL.createObjectURL(file)
 
-// ANALYSIS ENGINE
+}
+
+// ANALYSIS
 
 analyze.onclick=async()=>{
+
+if(!imageReady){
+
+results.innerText="Load a photo first."
+
+return
+
+}
 
 const ctx=canvas.getContext("2d")
 
@@ -246,8 +255,7 @@ redness/=px
 
 const oiliness=shine/px
 
-
-// FIXED SCORE SYSTEM
+// FIXED SCORE
 
 const skinScore=Math.max(
 0,
@@ -255,8 +263,8 @@ Math.min(
 100,
 Math.round(
 100
-- redness*0.6
-- (120-brightness)*0.4
+-redness*0.6
+-(120-brightness)*0.4
 )
 )
 )
@@ -264,8 +272,6 @@ Math.round(
 const glowScore=Math.round(
 (skinScore+80)/2
 )
-
-
 
 results.innerText=`
 
@@ -285,9 +291,6 @@ All analysis runs locally.
 Photos never uploaded.
 
 `
-
-
-// SAVE HISTORY
 
 await saveData({
 
@@ -311,8 +314,7 @@ renderHistory()
 
 }
 
-
-// HISTORY DISPLAY
+// HISTORY
 
 async function renderHistory(){
 
@@ -346,9 +348,7 @@ historyDiv.appendChild(div)
 
 }
 
-
 refresh.onclick=renderHistory
-
 
 clearBtn.onclick=async()=>{
 
@@ -357,7 +357,6 @@ await clearData()
 renderHistory()
 
 }
-
 
 exportBtn.onclick=async()=>{
 
@@ -376,7 +375,6 @@ a.download="beauty-history.json"
 a.click()
 
 }
-
 
 renderHistory()
 
