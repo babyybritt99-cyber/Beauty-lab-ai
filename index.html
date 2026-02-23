@@ -1,238 +1,387 @@
 <!doctype html>
 <html>
 <head>
-  <meta charset="utf-8" />
-  <title>Beauty Lab AI</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    body{font-family:Arial;background:#111;color:#fff;text-align:center;padding:20px}
-    button{padding:12px 14px;font-size:16px;margin:10px;background:#2b5cff;color:#fff;border:none;border-radius:10px}
-    button:disabled{opacity:.5}
-    .card{max-width:720px;margin:0 auto 16px auto;padding:14px;border:1px solid #222;border-radius:14px;background:#151515;text-align:left}
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    canvas{width:100%;max-width:520px;border-radius:12px;border:1px solid #222;margin-top:10px;background:#0d0d0d}
-    pre{white-space:pre-wrap;background:#0d0d0d;border:1px solid #222;border-radius:12px;padding:12px;min-height:110px}
-    small{color:#bdbdbd}
-    .hTitle{margin:0 0 10px 0}
-    .item{background:#0d0d0d;border:1px solid #222;border-radius:12px;padding:10px;margin-top:10px}
-    a{color:#8fb1ff}
-  </style>
+
+<meta charset="utf-8">
+
+<title>Beauty Lab AI</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+body{
+font-family:Arial;
+background:#111;
+color:white;
+text-align:center;
+padding:20px;
+}
+
+button{
+padding:12px;
+font-size:16px;
+margin:10px;
+background:#2b5cff;
+color:white;
+border:none;
+border-radius:10px;
+}
+
+.card{
+max-width:700px;
+margin:auto;
+margin-bottom:20px;
+padding:15px;
+border-radius:12px;
+background:#151515;
+border:1px solid #222;
+text-align:left;
+}
+
+canvas{
+width:100%;
+max-width:500px;
+border-radius:10px;
+margin-top:10px;
+}
+
+pre{
+white-space:pre-wrap;
+background:#0c0c0c;
+padding:10px;
+border-radius:10px;
+border:1px solid #222;
+}
+
+.historyItem{
+
+background:#0c0c0c;
+margin-top:10px;
+padding:10px;
+border-radius:10px;
+border:1px solid #222;
+
+}
+
+</style>
+
 </head>
 
 <body>
 
-  <h1>Beauty Lab AI</h1>
-  <p><small>Private AI Beauty System • All analysis runs locally • No uploads</small></p>
+<h1>Beauty Lab AI</h1>
 
-  <div class="card">
-    <h2 class="hTitle">1) Analyze Photo</h2>
-    <div class="row">
-      <input id="photo" type="file" accept="image/*" />
-      <button id="analyze" disabled>Analyze Photo</button>
-      <button id="export" title="Download your saved history as a file">Export History</button>
-    </div>
+<p>Private AI Beauty Lab</p>
 
-    <canvas id="canvas"></canvas>
+<div class="card">
 
-    <h3>Results</h3>
-    <pre id="results">Upload a photo to begin.</pre>
-  </div>
+<h2>Analyze Photo</h2>
 
-  <div class="card">
-    <h2 class="hTitle">2) History (Saved on this device)</h2>
-    <div class="row">
-      <button id="refresh">Refresh History</button>
-      <button id="clear">Clear History</button>
-    </div>
-    <div id="history"></div>
-    <p><small>Tip: Use the same lighting and distance each time for accurate tracking.</small></p>
-  </div>
+<input id="photo" type="file" accept="image/*">
 
-<script type="module">
-  // --- IndexedDB helpers (same as db.js but embedded to keep it simple) ---
-  const DB_NAME="beautylab";
-  const STORE="results";
+<br>
 
-  function openDB(){
-    return new Promise((resolve,reject)=>{
-      const req=indexedDB.open(DB_NAME,1);
-      req.onupgradeneeded=()=>{ req.result.createObjectStore(STORE,{keyPath:"id"}); };
-      req.onsuccess=()=>resolve(req.result);
-      req.onerror=()=>reject(req.error);
-    });
-  }
+<button id="analyze">Analyze Photo</button>
 
-  async function saveResult(payload){
-    const db=await openDB();
-    return new Promise((resolve,reject)=>{
-      const tx=db.transaction(STORE,"readwrite");
-      tx.objectStore(STORE).put(payload);
-      tx.oncomplete=()=>resolve(true);
-      tx.onerror=()=>reject(tx.error);
-    });
-  }
+<button id="export">Export History</button>
 
-  async function getResults(){
-    const db=await openDB();
-    return new Promise((resolve,reject)=>{
-      const tx=db.transaction(STORE,"readonly");
-      const req=tx.objectStore(STORE).getAll();
-      req.onsuccess=()=>resolve(req.result||[]);
-      req.onerror=()=>reject(req.error);
-    });
-  }
+<canvas id="canvas"></canvas>
 
-  async function clearResults(){
-    const db=await openDB();
-    return new Promise((resolve,reject)=>{
-      const tx=db.transaction(STORE,"readwrite");
-      tx.objectStore(STORE).clear();
-      tx.oncomplete=()=>resolve(true);
-      tx.onerror=()=>reject(tx.error);
-    });
-  }
+<h3>Results</h3>
 
-  // --- UI ---
-  const photo=document.getElementById("photo");
-  const analyze=document.getElementById("analyze");
-  const canvas=document.getElementById("canvas");
-  const results=document.getElementById("results");
-  const historyEl=document.getElementById("history");
-  const refreshBtn=document.getElementById("refresh");
-  const clearBtn=document.getElementById("clear");
-  const exportBtn=document.getElementById("export");
+<pre id="results">
 
-  let imageBitmap;
+Upload a photo to begin.
 
-  function clamp(n,min,max){ return Math.max(min,Math.min(max,n)); }
+</pre>
 
-  photo.onchange=async()=>{
-    const file=photo.files?.[0];
-    if(!file) return;
-    imageBitmap=await createImageBitmap(file);
-    const ctx=canvas.getContext("2d",{willReadFrequently:true});
+</div>
 
-    // resize for speed + consistency
-    const maxW=720;
-    const scale=Math.min(1, maxW/imageBitmap.width);
-    canvas.width=Math.round(imageBitmap.width*scale);
-    canvas.height=Math.round(imageBitmap.height*scale);
+<div class="card">
 
-    ctx.drawImage(imageBitmap,0,0,canvas.width,canvas.height);
-    analyze.disabled=false;
-    results.textContent="Ready. Tap Analyze Photo.";
-  };
+<h2>History</h2>
 
-  analyze.onclick=async()=>{
-    const ctx=canvas.getContext("2d",{willReadFrequently:true});
-    const img=ctx.getImageData(0,0,canvas.width,canvas.height);
+<button id="refresh">Refresh</button>
 
-    let brightness=0;
-    let redness=0;
-    let shine=0;
+<button id="clear">Clear History</button>
 
-    // quick metrics (proxies, not diagnosis)
-    for(let i=0;i<img.data.length;i+=4){
-      const r=img.data[i], g=img.data[i+1], b=img.data[i+2];
-      const lum=(r+g+b)/3;
-      brightness+=lum;
-      redness+=r-(g+b)/2;
-      if(lum>235) shine++;
-    }
+<div id="history"></div>
 
-    const px=img.data.length/4;
-    brightness/=px;
-    redness/=px;
-    const shineRatio=shine/px;
+</div>
 
-    // simple scores (transparent, adjustable later)
-    const rednessN=clamp((redness+30)/120,0,1);   // normalize
-    const dullnessN=clamp((180-brightness)/120,0,1);
-    const oilinessN=clamp(shineRatio*6,0,1);
+<script>
 
-    const skinScore=Math.round(100*(1-(0.55*rednessN+0.30*dullnessN+0.15*oilinessN)));
-    const glowScore=Math.round((skinScore+80)/2);
+// DATABASE
 
-    const summary =
-`Skin Score: ${skinScore}
+const DB="beautylab"
+
+const STORE="results"
+
+function openDB(){
+
+return new Promise(resolve=>{
+
+const req=indexedDB.open(DB,1)
+
+req.onupgradeneeded=()=>{
+
+req.result.createObjectStore(STORE,{keyPath:"id"})
+
+}
+
+req.onsuccess=()=>resolve(req.result)
+
+})
+
+}
+
+async function saveData(data){
+
+const db=await openDB()
+
+const tx=db.transaction(STORE,"readwrite")
+
+tx.objectStore(STORE).put(data)
+
+}
+
+async function getData(){
+
+const db=await openDB()
+
+return new Promise(resolve=>{
+
+const tx=db.transaction(STORE,"readonly")
+
+const req=tx.objectStore(STORE).getAll()
+
+req.onsuccess=()=>resolve(req.result)
+
+})
+
+}
+
+async function clearData(){
+
+const db=await openDB()
+
+const tx=db.transaction(STORE,"readwrite")
+
+tx.objectStore(STORE).clear()
+
+}
+
+
+// UI
+
+const photo=document.getElementById("photo")
+
+const analyze=document.getElementById("analyze")
+
+const canvas=document.getElementById("canvas")
+
+const results=document.getElementById("results")
+
+const historyDiv=document.getElementById("history")
+
+const refresh=document.getElementById("refresh")
+
+const clearBtn=document.getElementById("clear")
+
+const exportBtn=document.getElementById("export")
+
+let imageBitmap
+
+
+photo.onchange=async()=>{
+
+const file=photo.files[0]
+
+imageBitmap=await createImageBitmap(file)
+
+const ctx=canvas.getContext("2d")
+
+canvas.width=imageBitmap.width
+
+canvas.height=imageBitmap.height
+
+ctx.drawImage(imageBitmap,0,0)
+
+}
+
+
+// ANALYSIS ENGINE
+
+analyze.onclick=async()=>{
+
+const ctx=canvas.getContext("2d")
+
+const img=ctx.getImageData(0,0,canvas.width,canvas.height)
+
+let brightness=0
+let redness=0
+let shine=0
+
+for(let i=0;i<img.data.length;i+=4){
+
+const r=img.data[i]
+const g=img.data[i+1]
+const b=img.data[i+2]
+
+const lum=(r+g+b)/3
+
+brightness+=lum
+
+redness+=r-(g+b)/2
+
+if(lum>235) shine++
+
+}
+
+const px=img.data.length/4
+
+brightness/=px
+redness/=px
+
+const oiliness=shine/px
+
+
+// FIXED SCORE SYSTEM
+
+const skinScore=Math.max(
+0,
+Math.min(
+100,
+Math.round(
+100
+- redness*0.6
+- (120-brightness)*0.4
+)
+)
+)
+
+const glowScore=Math.round(
+(skinScore+80)/2
+)
+
+
+
+results.innerText=`
+
+Skin Score: ${skinScore}
+
 Glow Score: ${glowScore}
 
-Brightness(avg): ${Math.round(brightness)}
-Redness index: ${Math.round(redness)}
-Shine ratio: ${shineRatio.toFixed(4)}
+Brightness: ${Math.round(brightness)}
 
-Honest interpretation (photo-based, not medical):
-- Redness proxy: ${rednessN>0.66?"High":rednessN>0.33?"Moderate":"Low"}
-- Dullness proxy: ${dullnessN>0.66?"High":dullnessN>0.33?"Moderate":"Low"}
-- Oiliness proxy: ${oilinessN>0.66?"High":oilinessN>0.33?"Moderate":"Low"}
+Redness Index: ${Math.round(redness)}
 
-Notes:
-- Lighting/filters can change results a lot.
-- Use the same lighting + distance for tracking.`;
+Oiliness Index:
 
-    results.textContent=summary;
+${oiliness.toFixed(4)}
 
-    const entry={
-      id: Date.now(),
-      createdAt: new Date().toISOString(),
-      scores: { skinScore, glowScore },
-      metrics: {
-        brightness: Number(brightness.toFixed(2)),
-        redness: Number(redness.toFixed(2)),
-        shineRatio: Number(shineRatio.toFixed(6))
-      }
-    };
+All analysis runs locally.
+Photos never uploaded.
 
-    await saveResult(entry);
-    await renderHistory();
-  };
+`
 
-  async function renderHistory(){
-    const logs=(await getResults()).sort((a,b)=>b.id-a.id);
-    if(!logs.length){
-      historyEl.innerHTML="<p><small>No saved entries yet.</small></p>";
-      return;
-    }
-    historyEl.innerHTML="";
-    for(const l of logs){
-      const div=document.createElement("div");
-      div.className="item";
-      div.innerHTML=
-        `<div><b>${new Date(l.createdAt).toLocaleString()}</b></div>
-         <div><small>Skin: ${l.scores.skinScore} • Glow: ${l.scores.glowScore}</small></div>
-         <details>
-           <summary><small>Details</small></summary>
-           <pre>${escapeHtml(JSON.stringify(l,null,2))}</pre>
-         </details>`;
-      historyEl.appendChild(div);
-    }
-  }
 
-  function escapeHtml(s){
-    return s.replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
-  }
+// SAVE HISTORY
 
-  refreshBtn.onclick=renderHistory;
+await saveData({
 
-  clearBtn.onclick=async()=>{
-    await clearResults();
-    await renderHistory();
-    results.textContent="History cleared.";
-  };
+id:Date.now(),
 
-  exportBtn.onclick=async()=>{
-    const logs=await getResults();
-    const blob=new Blob([JSON.stringify(logs,null,2)],{type:"application/json"});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement("a");
-    a.href=url;
-    a.download="beauty-lab-ai-history.json";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+date:new Date().toLocaleString(),
 
-  renderHistory();
+skinScore,
+
+glowScore,
+
+brightness,
+
+redness,
+
+oiliness
+
+})
+
+renderHistory()
+
+}
+
+
+// HISTORY DISPLAY
+
+async function renderHistory(){
+
+const data=await getData()
+
+historyDiv.innerHTML=""
+
+data.reverse().forEach(d=>{
+
+const div=document.createElement("div")
+
+div.className="historyItem"
+
+div.innerHTML=`
+
+<b>${d.date}</b>
+
+<br>
+
+Skin Score: ${d.skinScore}
+
+<br>
+
+Glow Score: ${d.glowScore}
+
+`
+
+historyDiv.appendChild(div)
+
+})
+
+}
+
+
+refresh.onclick=renderHistory
+
+
+clearBtn.onclick=async()=>{
+
+await clearData()
+
+renderHistory()
+
+}
+
+
+exportBtn.onclick=async()=>{
+
+const data=await getData()
+
+const blob=new Blob([JSON.stringify(data,null,2)])
+
+const url=URL.createObjectURL(blob)
+
+const a=document.createElement("a")
+
+a.href=url
+
+a.download="beauty-history.json"
+
+a.click()
+
+}
+
+
+renderHistory()
+
 </script>
 
 </body>
+
 </html>
